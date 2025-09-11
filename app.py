@@ -45,7 +45,7 @@ def get_audio_input():
 
     # ---- Upload option ----
     with tab1:
-        uploaded_file = st.file_uploader("Upload WAV or MP3", type=["wav", "mp3"])
+        uploaded_file = st.file_uploader("Upload audio", type=["wav", "mp3"])
         if uploaded_file:
             save_dir = Path("uploads")
             save_dir.mkdir(exist_ok=True)
@@ -56,20 +56,16 @@ def get_audio_input():
 
     # ---- Record option ----
     with tab2:
-        st.write("Click below to record:")
-        audio = audiorecorder("Start Recording", "Stop Recording")
-        if len(audio) > 0:
-            st.audio(audio.tobytes(), format="audio/wav")
-
+        recorded_file = st.audio_input("Record your voice")
+        if recorded_file:
             save_dir = Path("uploads")
             save_dir.mkdir(exist_ok=True)
             audio_path = save_dir / "recording.wav"
             with open(audio_path, "wb") as f:
-                f.write(audio.tobytes())
+                f.write(recorded_file.getbuffer())
+            # st.success(f"Recording saved: {audio_path}")
 
-            st.success(f"Recording saved: {audio_path}")
-
-    return str(audio_path) if audio_path else None
+    return str(audio_path) if audio_path else None    
 
 audio_path = get_audio_input()
 
