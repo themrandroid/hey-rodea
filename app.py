@@ -5,7 +5,6 @@ import json
 import html
 import streamlit.components.v1 as components
 from pathlib import Path
-from audiorecorder import audiorecorder
 from faster_whisper import WhisperModel
 
 if "history" not in st.session_state:
