@@ -18,7 +18,7 @@ def load_whisper_model():
 model = load_whisper_model()
 
 # Import your pipeline functions
-from pipeline_original import analyze_speech, transcribe_with_timestamps
+from pipeline import analyze_speech, transcribe_with_timestamps
 
 st.set_page_config(page_title="Hey Rodea", layout="wide")
 
