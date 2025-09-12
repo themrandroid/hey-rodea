@@ -129,27 +129,32 @@ def compute_scores(stats, pauses, total_time_sec):
     filler_density = stats["filler_density"]
     long_pause_rate_per_min = stats["long_pauses_count"] / (total_time_sec / 60) if total_time_sec > 0 else 0
 
+    # --- Clarity ---
     clarity = 100
-    clarity -= min(40, 400 * filler_density)
-    clarity -= min(20, 10 * long_pause_rate_per_min)
+    clarity -= min(30, 300 * filler_density)  # softer penalty for fillers
+    clarity -= min(15, 8 * long_pause_rate_per_min)  # gentle deduction for long pauses
     clarity = max(0, min(100, round(clarity, 2)))
 
+    # --- Confidence ---
     WPM = stats["WPM"]
-    target_mid, target_span = 165, 15
-    conf_score = 100 - min(50, abs(WPM - target_mid) / target_span * 100)
-    confidence = max(0, min(100, round(conf_score, 2)))
+    if 140 <= WPM <= 180:
+        confidence = 90 + (10 - abs(WPM - 160) / 2)  # strong zone → ~90–100
+    else:
+        confidence = max(40, 90 - (abs(WPM - 160) / 2))  # gradual falloff, never <40
+    confidence = max(0, min(100, round(confidence, 2)))
 
+    # --- Engagement ---
     pauses_per_min = len(pauses) / (total_time_sec / 60) if total_time_sec > 0 else 0
     pause_lengths = [end - start for start, end in pauses]
     median_pause = np.median(pause_lengths) if pause_lengths else 0
 
-    engagement = 60
+    engagement = 50  # baseline
     if 6 <= pauses_per_min <= 15 and 0.3 <= median_pause <= 1.2:
-        engagement += 15
+        engagement += 35  # excellent pause rhythm
     elif pauses_per_min > 0:
-        engagement += 10
-    engagement += 10
-
+        engagement += 20  # some effort
+    else:
+        engagement += 10  # almost no pauses
     engagement = max(0, min(100, round(engagement, 2)))
 
     return {
@@ -163,51 +168,38 @@ def compute_scores(stats, pauses, total_time_sec):
 def generate_feedback(stats, scores, pauses, total_time_sec, long_thr=2.0):
     feedback = []
 
+    # Fillers
     if stats["filler_count"] > 0:
         top_filler = max(stats["top_fillers"], key=stats["top_fillers"].get, default=None)
-        feedback.append(
-            f"You used {stats['filler_count']} filler words"
-            + (f", mostly '{top_filler}'" if top_filler else "")
-            + ". Try a short silent pause when you need to think."
-        )
+        if top_filler:
+            feedback.append(f"You used ‘{top_filler}’ quite a few times. Try pausing briefly instead.")
+        else:
+            feedback.append("You used some filler words. Short pauses would sound clearer.")
 
+    # Pace
     if stats["WPM"] > 190:
-        feedback.append(
-            f"Your pace averaged {stats['WPM']} WPM — a bit fast. "
-            "Aim for 150–180 WPM for clarity."
-        )
+        feedback.append("You were speaking quite fast. Slow down a little so every word lands.")
     elif stats["WPM"] < 120:
-        feedback.append(
-            f"Your pace averaged {stats['WPM']} WPM — a bit slow. "
-            "Aim for 150–180 WPM for better engagement."
-        )
+        feedback.append("Your pace felt a bit slow. Try picking it up to keep energy in your voice.")
+    else:
+        feedback.append("Your pace felt natural, easy to follow.")
 
-    pauses_per_min = len(pauses) / (total_time_sec / 60) if total_time_sec > 0 else 0
+    # Pauses
     pause_lengths = [end - start for start, end in pauses]
-    median_pause = np.median(pause_lengths) if pause_lengths else 0
-
-    if pauses_per_min < 3:
-        feedback.append(
-            f"Pauses were scarce ({pauses_per_min:.1f}/min). "
-            "Add brief pauses to separate ideas."
-        )
-    elif any((end - start) > long_thr for start, end in pauses):
-        feedback.append(
-            f"Several long pauses (>{long_thr}s). "
-            "Consider shorter, intentional breaths between points."
-        )
+    if any((end - start) > long_thr for start, end in pauses):
+        feedback.append("There were a few long silences. Keep them shorter to stay engaging.")
+    elif len(pauses) < 2:
+        feedback.append("You hardly paused. A few short breaks would make your message clearer.")
     else:
-        feedback.append(
-            f"Great balance of pauses (median {median_pause:.1f}s). "
-            "Keeps the audience with you!"
-        )
+        feedback.append("Good use of pauses, they gave your words space to breathe.")
 
+    # Overall
     if scores["Clarity"] > 75:
-        feedback.append("Nice clarity overall — your message came through well!")
+        feedback.append("Your clarity was strong, your points came through well.")
     elif scores["Confidence"] > 75:
-        feedback.append("You sounded confident — good pacing and delivery.")
+        feedback.append("You sounded confident and assured, nice delivery.")
     else:
-        feedback.append("Solid effort — keep practicing to improve further!")
+        feedback.append("Solid effort! Keep practicing and your delivery will only improve.")
 
     return feedback
 
