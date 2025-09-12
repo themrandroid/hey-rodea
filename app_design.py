@@ -53,7 +53,7 @@ def donut_card(label, value, color, key_suffix="", height=220):
     fig.update_layout(
         annotations=[
             dict(
-                text=f"<b style='color:white;font-size:22px'>{value}%</b><br>"
+                text=f"<b style='color:black;font-size:22px'>{value}%</b><br>"
                      f"<span style='color:#555;font-size:14px'>{label}</span>",
                 x=0.5, y=0.5, showarrow=False
             )
