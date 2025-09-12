@@ -211,7 +211,6 @@ def generate_feedback(stats, scores, pauses, total_time_sec, long_thr=2.0):
 
     return feedback
 
-
 # 6. Preprocess Audio (convert to 16kHz mono WAV)
 def preprocess_audio(audio_path, out_dir="processed", target_sr=16000):
     out_dir = Path(out_dir)

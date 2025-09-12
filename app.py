@@ -10,6 +10,9 @@ from faster_whisper import WhisperModel
 if "history" not in st.session_state:
     st.session_state.history = []  # list of dicts: [{"file": ..., "transcript": ...}, ...]
 
+if "coach_history" not in st.session_state:
+    st.session_state.coach_history = []  # list of dicts: {"file": ..., "scores": ..., "feedback": ...}
+
 @st.cache_resource
 def load_whisper_model():
     model_size = "small"
@@ -20,12 +23,32 @@ model = load_whisper_model()
 # Import your pipeline functions
 from pipeline import analyze_speech, transcribe_with_timestamps
 
+# Import App Design Functions
+from app_design import transcript_card, donut_card, styled_feedback
+
 st.set_page_config(page_title="Hey Rodea", layout="wide")
 
 # ------------------------
 # Main Menu
 # ------------------------
-st.title("Hey Rodea")
+st.markdown(
+    """
+    <h1 style="
+        text-align: center;
+        background: linear-gradient(90deg, #2E86C1, #28B463, #CA6F1E);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        font-size: 3em;
+        font-weight: 800;
+        text-shadow: 2px 2px 6px rgba(0,0,0,0.2);
+        margin-bottom: 10px;
+    ">
+        Hey Rodea 👋
+    </h1>
+    """,
+    unsafe_allow_html=True,
+)
+
 choice = st.radio("Choose a mode:", ["Speech-to-Text", "Speech Coach"], horizontal=True)
 
 # ------------------------  
@@ -84,7 +107,7 @@ def copy_to_clipboard(text, key):
 if audio_path:
     os.makedirs("asr_json", exist_ok=True)
     if choice == "Speech-to-Text":
-        st.subheader("Transcript")
+        st.subheader("Transcript:")
         # Only ASR
         out_json = f"asr_json/{Path(audio_path).stem}.json"
         transcribe_with_timestamps(model, str(audio_path), out_json)
@@ -95,7 +118,7 @@ if audio_path:
 
         transcript = " ".join([w["word"] for w in words])
         # st.text_area("Transcript", transcript, height=200)
-        st.markdown(f"**Transcript:**\n\n{transcript}")
+        transcript_card(transcript)
         copy_to_clipboard(transcript, key="main_copy")
 
         transcript = " ".join([w["word"] for w in words])
@@ -112,62 +135,30 @@ if audio_path:
             else:
                 for i, item in enumerate(reversed(st.session_state.history), 1):
                     with st.expander(f"{i}. {item['file']}"):
-                        st.markdown(f"**Transcript:**\n\n{item['transcript']}")
+                        transcript_card(item['transcript'])
                         copy_to_clipboard(item['transcript'], key=f"copy_{i}")
 
     elif choice == "Speech Coach":
-        st.subheader("Results")
+        st.subheader("Results:")
         result = analyze_speech(model, str(audio_path))
+
+        if not st.session_state.coach_history or st.session_state.coach_history[-1]["file"] != Path(audio_path).name:
+            st.session_state.coach_history.append({
+                "file": Path(audio_path).name,
+                "scores": result["scores"],
+                "feedback": result["feedback"]
+            })
 
         # --- Show scores in cards ---
         col1, col2, col3 = st.columns(3)
 
-        # Helper function to render card with animated bar
-        def score_card(label, score, color):
-            components.html(
-                f"""
-        <div style="background-color:#f9f9f9;padding:20px;
-                    border-radius:10px;text-align:center;
-                    box-shadow:0 2px 5px rgba(0,0,0,0.1);
-                    position:relative;">
-            
-            <div style="font-size:32px;font-weight:bold;color:{color};">
-                {score}
-            </div>
-            <div style="font-size:16px;color:#555;margin-bottom:10px;">
-                {label}
-            </div>
-
-            <div style="background:#e0e0e0;border-radius:10px;
-                        overflow:hidden;height:15px;">
-                <div style="
-                    width:0%;
-                    background:{color};
-                    height:100%;
-                    border-radius:10px;
-                    animation: fillAnim 2s forwards;
-                    --target:{score}%;
-                "></div>
-            </div>
-        </div>
-
-        <style>
-        @keyframes fillAnim {{
-            from {{ width: 0%; }}
-            to   {{ width: var(--target); }}
-        }}
-        </style>
-                """,
-            )
-
         with col1:
-            score_card("Clarity", result["scores"]["Clarity"], "#2E86C1")
-
+            donut_card("Clarity", result["scores"]["Clarity"], "#2E86C1", key_suffix="current")
         with col2:
-            score_card("Confidence", result["scores"]["Confidence"], "#28B463")
-
+            donut_card("Confidence", result["scores"]["Confidence"], "#28B463", key_suffix="current")
         with col3:
-            score_card("Engagement", result["scores"]["Engagement"], "#CA6F1E")
+            donut_card("Engagement", result["scores"]["Engagement"], "#CA6F1E", key_suffix="current")
+
 
         # --- Feedback section ---
         st.subheader("Feedback")
@@ -182,5 +173,20 @@ if audio_path:
 
         # Conditionally display feedback
         if st.session_state.show_feedback:
-            for line in result["feedback"]:
-                st.write(f"- {line}")
+            styled_feedback(result["feedback"])
+
+        # Save to history
+        with st.expander("Coach History", expanded=False):
+            if not st.session_state.coach_history:
+                st.write("No coaching sessions yet.")
+            else:
+                for i, item in enumerate(reversed(st.session_state.coach_history), 1):
+                    with st.expander(f"{i}. {item['file']}"):
+                        col1, col2, col3 = st.columns(3)
+                        with col1:
+                            donut_card("Clarity", item["scores"]["Clarity"], "#2E86C1", key_suffix=f"hist_{i}")
+                        with col2:
+                            donut_card("Confidence", item["scores"]["Confidence"], "#28B463", key_suffix=f"hist_{i}")
+                        with col3:
+                            donut_card("Engagement", item["scores"]["Engagement"], "#CA6F1E", key_suffix=f"hist_{i}")
+                        styled_feedback(item["feedback"])
