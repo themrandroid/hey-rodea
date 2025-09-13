@@ -22,7 +22,7 @@ def transcribe_with_timestamps(model, audio_path, output_json):
     # Save JSON
     with open(output_json, "w", encoding="utf-8") as f:
         json.dump(words, f, indent=2)
-
+        
     return words
 
 
@@ -170,19 +170,19 @@ def generate_feedback(stats, scores, pauses, total_time_sec, long_thr=2.0):
 
     # Fillers
     if stats["filler_count"] > 0:
-        top_filler = max(stats["top_fillers"], key=stats["top_fillers"].get, default=None)
-        if top_filler:
-            feedback.append(f"You used ‘{top_filler}’ quite a few times. Try pausing briefly instead.")
-        else:
-            feedback.append("You used some filler words. Short pauses would sound clearer.")
+        # top_filler = max(stats["top_fillers"], key=stats["top_fillers"].get, default=None)
+        # if top_filler:
+        #     feedback.append(f"You used ‘{top_filler}’ quite a few times. Try pausing briefly instead.")
+        # else:
+        feedback.append("You used some filler words. Short pauses would sound clearer.")
 
     # Pace
     if stats["WPM"] > 190:
         feedback.append("You were speaking quite fast. Slow down a little so every word lands.")
     elif stats["WPM"] < 120:
         feedback.append("Your pace felt a bit slow. Try picking it up to keep energy in your voice.")
-    else:
-        feedback.append("Your pace felt natural, easy to follow.")
+    # else:
+    #     feedback.append("Your pace felt natural, easy to follow.")
 
     # Pauses
     pause_lengths = [end - start for start, end in pauses]
@@ -190,8 +190,8 @@ def generate_feedback(stats, scores, pauses, total_time_sec, long_thr=2.0):
         feedback.append("There were a few long silences. Keep them shorter to stay engaging.")
     elif len(pauses) < 2:
         feedback.append("You hardly paused. A few short breaks would make your message clearer.")
-    else:
-        feedback.append("Good use of pauses, they gave your words space to breathe.")
+    # else:
+    #     feedback.append("Good use of pauses, they gave your words space to breathe.")
 
     # Overall
     if scores["Clarity"] > 75:
